@@ -1,0 +1,59 @@
+name: uptime
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'   # GitHub runs schedules best-effort: often 5-15 min apart
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write           # to keep the alert state on the `state` branch
+
+concurrency:
+  group: uptime
+  cancel-in-progress: false
+
+jobs:
+  test:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node --test
+
+  check:
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch alert state
+        run: |
+          if git fetch --depth=1 origin state 2>/dev/null; then
+            git worktree add state FETCH_HEAD
+          else
+            git worktree add --orphan -b state state
+          fi
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Check
+        id: check
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: node check.mjs state/state.json
+      - name: Save alert state
+        # Runs even when the check exits 1 (a new outage), or the alert would repeat.
+        # A daily commit also keeps GitHub from pausing the schedule after 60 quiet days.
+        if: always() && steps.check.outputs.changed == 'true'
+        run: |
+          cd state
+          git config user.name 'octopus-uptime'
+          git config user.email 'octopus-uptime@users.noreply.github.com'
+          git add state.json
+          git commit -qm "state $(date -u +%FT%TZ)"
+          git push -q origin HEAD:state

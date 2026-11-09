@@ -1,0 +1,32 @@
+{
+  "_rule": "A target is up when it answers below 500 (a login redirect, 401 or 404 still proves the app is running). 'strict' targets must answer exactly 200.",
+  "targets": [
+    { "name": "cortex bots", "url": "https://chat.octopustechnology.net/api/health/bots", "strict": true },
+    { "name": "cortex", "url": "https://chat.octopustechnology.net/api/build" },
+    { "name": "auth", "url": "https://auth.octopustechnology.net/api/build" },
+    { "name": "site", "url": "https://octopustechnology.net/api/build" },
+    { "name": "billing", "url": "https://pay.octopustechnology.net/api/build" },
+    { "name": "budget", "url": "https://budget.octopustechnology.net/api/build" },
+    { "name": "health", "url": "https://health.octopustechnology.net/api/build" },
+    { "name": "planner", "url": "https://plan.octopustechnology.net/api/build" },
+    { "name": "pass", "url": "https://pass.octopustechnology.net/" },
+    { "name": "xmpp", "url": "https://xmpp.octopustechnology.net/" },
+    { "name": "shopper", "url": "https://shop.octopustechnology.net/api/build" },
+    { "name": "kitchen", "url": "https://kitchen.octopustechnology.net/api/build" },
+    { "name": "ee", "url": "https://ee.octopustechnology.net/api/build" },
+    { "name": "media", "url": "https://media.octopustechnology.net/api/build" },
+    { "name": "edm", "url": "https://edm.octopustechnology.net/api/build" },
+    { "name": "mma", "url": "https://mma.octopustechnology.net/api/build" },
+    { "name": "games", "url": "https://games.octopustechnology.net/api/build" },
+    { "name": "math", "url": "https://math.octopustechnology.net/api/build" },
+    { "name": "science", "url": "https://science.octopustechnology.net/api/build" },
+    { "name": "tools", "url": "https://tools.octopustechnology.net/api/build" },
+    { "name": "blog", "url": "https://blog.octopustechnology.net/api/build" },
+    { "name": "code", "url": "https://code.octopustechnology.net/api/build" },
+    { "name": "business", "url": "https://business.octopustechnology.net/api/build" },
+    { "name": "marketing", "url": "https://marketing.octopustechnology.net/api/build" },
+    { "name": "ecom", "url": "https://ecom.octopustechnology.net/api/build" },
+    { "name": "author", "url": "https://write.octopustechnology.net/api/build" },
+    { "name": "studio", "url": "https://studio.octopustechnology.net/api/build" }
+  ]
+}
