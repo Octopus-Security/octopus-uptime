@@ -1,6 +1,6 @@
 {
   "day": "2026-11-11",
-  "checkedAt": "2026-11-11T03:10:03.369Z",
+  "checkedAt": "2026-11-11T18:20:40.561Z",
   "targets": {
     "cortex bots": {
       "failRuns": 0,
@@ -93,6 +93,11 @@
       "since": null
     },
     "science": {
+      "failRuns": 0,
+      "alerted": false,
+      "since": null
+    },
+    "school": {
       "failRuns": 0,
       "alerted": false,
       "since": null
