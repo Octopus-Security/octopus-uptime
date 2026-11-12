@@ -1,6 +1,6 @@
 {
   "day": "2026-11-12",
-  "checkedAt": "2026-11-12T00:52:33.417Z",
+  "checkedAt": "2026-11-12T07:51:45.461Z",
   "targets": {
     "cortex bots": {
       "failRuns": 0,
@@ -98,6 +98,11 @@
       "since": null
     },
     "school": {
+      "failRuns": 0,
+      "alerted": false,
+      "since": null
+    },
+    "coach": {
       "failRuns": 0,
       "alerted": false,
       "since": null
