@@ -21,6 +21,7 @@
     { "name": "math", "url": "https://math.octopustechnology.net/api/build" },
     { "name": "science", "url": "https://science.octopustechnology.net/api/build" },
     { "name": "school", "url": "https://school.octopustechnology.net/api/build" },
+    { "name": "coach", "url": "https://train.octopustechnology.net/api/build" },
     { "name": "tools", "url": "https://tools.octopustechnology.net/api/build" },
     { "name": "blog", "url": "https://blog.octopustechnology.net/api/build" },
     { "name": "code", "url": "https://code.octopustechnology.net/api/build" },
