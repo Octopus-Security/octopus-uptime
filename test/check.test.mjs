@@ -44,3 +44,49 @@ test('targets are https, uniquely named, and none points at a private service', 
     assert.doesNotMatch(t.url, /ops|mcp|portainer|:\d+/, t.url);
   }
 });
+
+import net from 'node:net';
+import { emailConfig, sendMail, buildMessage } from '../mail.mjs';
+
+test('email is off unless host, recipient and from are all set', () => {
+  assert.equal(emailConfig({}), null);
+  assert.equal(emailConfig({ SMTP_HOST: 'h', ALERT_EMAIL_TO: 'a@b.c' }), null);
+  assert.equal(emailConfig({ SMTP_HOST: 'h', MAIL_FROM: 'x@y.z' }), null);
+  const c = emailConfig({ SMTP_HOST: 'h', ALERT_EMAIL_TO: 'a@b.c', MAIL_FROM: 'x@y.z' });
+  assert.equal(c.port, 465);
+});
+
+test('message headers cannot be injected and dot-lines are escaped', () => {
+  const m = buildMessage({ from: 'a@b.c', to: 'd@e.f', subject: 'hi\r\nBcc: evil@x.y', text: 'line\n.dot\n' });
+  assert.ok(!/^Bcc:/m.test(m));
+  assert.ok(m.includes('\r\n..dot'));
+});
+
+test('sends over SMTP once with the right envelope, and never puts the password in an error', async () => {
+  const got = [];
+  const srv = net.createServer((s) => {
+    s.write('220 hi\r\n');
+    let data = false; let buf = '';
+    s.on('data', (d) => {
+      buf += d.toString();
+      let i;
+      while ((i = buf.indexOf('\r\n')) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 2); got.push(line);
+        if (data) { if (line === '.') { data = false; s.write('250 ok\r\n'); } continue; }
+        if (line.startsWith('EHLO')) s.write('250 hi\r\n');
+        else if (line.startsWith('AUTH')) s.write('535 no\r\n');
+        else if (line === 'DATA') { data = true; s.write('354 go\r\n'); }
+        else if (line === 'QUIT') s.end('221 bye\r\n');
+        else s.write('250 ok\r\n');
+      }
+    });
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const base = { host: '127.0.0.1', port: srv.address().port, from: 'Alerts <a@b.c>', to: 'o@e.f', subject: 'down', text: 'site is down' };
+  await sendMail(base);
+  assert.ok(got.includes('MAIL FROM:<a@b.c>') && got.includes('RCPT TO:<o@e.f>'));
+  assert.ok(got.includes('site is down'));
+  await assert.rejects(sendMail({ ...base, user: 'u', pass: 'hunter2-pass' }), /without TLS/);
+  await assert.rejects(sendMail({ ...base, user: 'u', pass: 'hunter2-pass' }, { allowPlain: true }), (e) => !e.message.includes('hunter2-pass') && /AUTH/.test(e.message));
+  srv.close();
+});

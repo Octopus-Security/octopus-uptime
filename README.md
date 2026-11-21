@@ -16,6 +16,15 @@ service that sends every other alert, is the thing that is down.
   (repository secrets `DISCORD_WEBHOOK_URL`, or `TELEGRAM_BOT_TOKEN` +
   `TELEGRAM_CHAT_ID`). With neither, the run that finds a new outage fails, and
   GitHub's failed-run email is the alert.
+- **Email** is a third optional channel, sent on the same events (one email per
+  outage, one on recovery). It is skipped silently unless the repository secrets
+  `SMTP_HOST`, `ALERT_EMAIL_TO` and `MAIL_FROM` are all set; also `SMTP_USER`,
+  `SMTP_PASS` and `SMTP_PORT` (465 = implicit TLS, default; 587 = STARTTLS;
+  credentials are never sent without TLS). Migadu: `smtp.migadu.com`. The SMTP
+  client is `mail.mjs`, dependency-free, so no third-party action touches the secrets.
+  Telegram needs `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (create a bot with
+  BotFather; the chat id is from messaging the bot and reading `getUpdates`); both
+  are already wired in the workflow, they just are not set yet.
 - Alert state lives on the `state` branch (`state.json`), so a run knows what
   the previous one saw.
 

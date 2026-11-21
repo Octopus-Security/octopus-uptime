@@ -7,6 +7,8 @@
 // Env (all optional):
 //   DISCORD_WEBHOOK_URL                       post alerts to a Discord channel
 //   TELEGRAM_BOT_TOKEN + TELEGRAM_CHAT_ID     send alerts via the Telegram Bot API
+//   SMTP_HOST + ALERT_EMAIL_TO + MAIL_FROM    email alerts (+ SMTP_PORT, SMTP_USER, SMTP_PASS);
+//                                             skipped silently unless all three are set
 //   FAIL_RUNS   consecutive failing runs before alerting (default 2: a deploy
 //               restart that lasts one run never pages anyone)
 //
@@ -16,6 +18,7 @@
 
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { emailConfig, sendMail } from './mail.mjs';
 
 /** Up = answered below 500 (strict: exactly 200). No answer = down. */
 export function isUp(status, strict = false) {
@@ -82,6 +85,14 @@ async function notify(text) {
       });
       if (r.ok) sent.push('telegram'); else errors.push(`telegram ${r.status}`);
     } catch (e) { errors.push(`telegram ${e.message}`); }
+  }
+  const mail = emailConfig();
+  if (mail) {
+    try {
+      const first = text.split('\n').find((l) => l.trim() && !l.startsWith('[octopus-uptime]')) || 'alert';
+      await sendMail({ ...mail, subject: `[octopus-uptime] ${first}`.slice(0, 160), text });
+      sent.push('email');
+    } catch (e) { errors.push(`email ${String(e.message).replace(mail.pass || '\u0000', '***')}`); }
   }
   return { sent, errors };
 }
