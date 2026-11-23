@@ -45,14 +45,36 @@ export function step(prev, up, nowIso, failRunsNeeded = 2) {
   return { next, event: null };
 }
 
+/**
+ * A target may take its URL and headers from environment variables (repository
+ * secrets) instead of targets.json, which is public. Returns null when any of
+ * them is unset, so a target nobody has configured yet is reported, not probed.
+ * `label` is what logs and alerts print in place of the URL.
+ */
+/** The public-target rule: https on our own domain, never a private service or a bare port. */
+export function allowedUrl(url) {
+  return /^https:\/\/([a-z0-9-]+\.)?octopustechnology\.net\//.test(url) && !/ops|mcp|portainer|:\d+/.test(url);
+}
+
+export function resolveTarget(t, env = process.env) {
+  const url = t.urlEnv ? env[t.urlEnv] : t.url;
+  if (!url || (t.urlEnv && !allowedUrl(url))) return null;
+  const headers = {};
+  for (const [h, name] of Object.entries(t.headersEnv || {})) {
+    if (!env[name]) return null;
+    headers[h] = env[name];
+  }
+  return { url, headers, label: t.urlEnv ? `(secret ${t.urlEnv})` : t.url };
+}
+
 export function duration(fromIso, toIso) {
   const m = Math.max(0, Math.round((new Date(toIso) - new Date(fromIso)) / 60000));
   return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`;
 }
 
-async function probe(url) {
+async function probe(url, headers = {}) {
   try {
-    const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(15000), headers: { 'user-agent': 'octopus-uptime' } });
+    const r = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(15000), headers: { 'user-agent': 'octopus-uptime', ...headers } });
     return { status: r.status };
   } catch (e) {
     return { status: 0, error: e.name === 'TimeoutError' ? 'timeout' : String(e.cause?.code || e.message) };
@@ -60,10 +82,10 @@ async function probe(url) {
 }
 
 async function checkTarget(t) {
-  let r = await probe(t.url);
+  let r = await probe(t.resolved.url, t.resolved.headers);
   if (!isUp(r.status, t.strict)) {
     await new Promise((res) => setTimeout(res, 20000)); // one retry: ride out a blip
-    r = await probe(t.url);
+    r = await probe(t.resolved.url, t.resolved.headers);
   }
   return { ...r, up: isUp(r.status, t.strict) };
 }
@@ -99,7 +121,14 @@ async function notify(text) {
 
 async function main() {
   const stateFile = process.argv[2] || 'state/state.json';
-  const { targets } = JSON.parse(readFileSync(new URL('./targets.json', import.meta.url)));
+  const all = JSON.parse(readFileSync(new URL('./targets.json', import.meta.url))).targets;
+  const targets = [];
+  for (const t of all) {
+    const resolved = resolveTarget(t);
+    // Loud, every run: an unconfigured check must not look like a passing one.
+    if (!resolved) { console.log(`SKIP  ${t.name.padEnd(12)} not configured: set the repository secrets ${[t.urlEnv, ...Object.values(t.headersEnv || {})].filter(Boolean).join(', ')}`); continue; }
+    targets.push({ ...t, resolved });
+  }
   const state = existsSync(stateFile) ? JSON.parse(readFileSync(stateFile, 'utf8')) : { targets: {} };
   const need = Math.max(1, parseInt(process.env.FAIL_RUNS || '2', 10));
   const now = new Date().toISOString();
@@ -114,7 +143,7 @@ async function main() {
     nextTargets[t.name] = s.next;
     const why = r.status ? `HTTP ${r.status}` : r.error;
     console.log(`${r.up ? 'up  ' : 'DOWN'}  ${t.name.padEnd(12)} ${why}${!r.up ? ` (failing runs: ${s.next.failRuns})` : ''}`);
-    if (s.event === 'down') downs.push(`${t.name}: ${why} — ${t.url}`);
+    if (s.event === 'down') downs.push(`${t.name}: ${why} — ${t.resolved.label}${t.note ? `\n  ${t.note}` : ''}`);
     if (s.event === 'up') ups.push(`${t.name} (down ${duration(s.downSince, now)})`);
   });
 
