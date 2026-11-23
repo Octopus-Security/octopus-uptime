@@ -1,6 +1,7 @@
 {
   "_rule": "A target is up when it answers below 500 (a login redirect, 401 or 404 still proves the app is running). 'strict' targets must answer exactly 200.",
   "targets": [
+    { "name": "ids heartbeat", "urlEnv": "IDS_HEARTBEAT_URL", "headersEnv": { "x-ids-token": "IDS_HEARTBEAT_TOKEN" }, "strict": true, "note": "octopus-ids on the server is unhealthy or unreachable: canary watcher, auditd, alert channels or weekly self-test. On the host: curl -s -H \"x-ids-token: $(sudo cat /var/lib/octopus-ids/heartbeat.token)\" localhost:9471/heartbeat" },
     { "name": "cortex bots", "url": "https://chat.octopustechnology.net/api/health/bots", "strict": true },
     { "name": "cortex", "url": "https://chat.octopustechnology.net/api/build" },
     { "name": "auth", "url": "https://auth.octopustechnology.net/api/build" },

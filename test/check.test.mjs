@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { isUp, step, duration } from '../check.mjs';
+import { isUp, step, duration, resolveTarget, allowedUrl } from '../check.mjs';
 
 test('up means the origin answered: below 500, or exactly 200 when strict', () => {
   for (const s of [200, 204, 301, 302, 401, 403, 404]) assert.equal(isUp(s), true, String(s));
@@ -40,8 +40,10 @@ test('targets are https, uniquely named, and none points at a private service', 
   assert.ok(targets.length > 0);
   assert.equal(new Set(targets.map((t) => t.name)).size, targets.length);
   for (const t of targets) {
+    if (t.urlEnv) continue; // secret URLs are held to the same rule when resolved (allowedUrl)
     assert.match(t.url, /^https:\/\/([a-z0-9-]+\.)?octopustechnology\.net\//, t.url);
     assert.doesNotMatch(t.url, /ops|mcp|portainer|:\d+/, t.url);
+    assert.ok(allowedUrl(t.url), t.url);
   }
 });
 
@@ -89,4 +91,21 @@ test('sends over SMTP once with the right envelope, and never puts the password 
   await assert.rejects(sendMail({ ...base, user: 'u', pass: 'hunter2-pass' }), /without TLS/);
   await assert.rejects(sendMail({ ...base, user: 'u', pass: 'hunter2-pass' }, { allowPlain: true }), (e) => !e.message.includes('hunter2-pass') && /AUTH/.test(e.message));
   srv.close();
+});
+
+test('a secret-backed target resolves from env, is skipped until configured, and never prints its URL', () => {
+  const t = { name: 'ids', urlEnv: 'IDS_URL', headersEnv: { 'x-ids-token': 'IDS_TOKEN' }, strict: true };
+  assert.equal(resolveTarget(t, {}), null);
+  assert.equal(resolveTarget(t, { IDS_URL: 'https://h/heartbeat' }), null, 'a missing header secret also skips');
+  const r = resolveTarget(t, { IDS_URL: 'https://ids.octopustechnology.net/heartbeat', IDS_TOKEN: 'tok' });
+  assert.deepEqual(r, { url: 'https://ids.octopustechnology.net/heartbeat', headers: { 'x-ids-token': 'tok' }, label: '(secret IDS_URL)' });
+  assert.equal(resolveTarget(t, { IDS_URL: 'http://1.2.3.4:9471/heartbeat', IDS_TOKEN: 'tok' }), null, 'a secret URL obeys the public-target rule');
+  assert.equal(resolveTarget({ name: 'site', url: 'https://x/' }, {}).label, 'https://x/');
+});
+
+test('targets.json is valid and the heartbeat target holds no URL or token in the public file', () => {
+  const { targets } = JSON.parse(readFileSync(new URL('../targets.json', import.meta.url)));
+  const ids = targets.find((t) => t.name === 'ids heartbeat');
+  assert.ok(ids && ids.strict && ids.urlEnv && !ids.url);
+  for (const t of targets) assert.ok(t.url || t.urlEnv, t.name);
 });

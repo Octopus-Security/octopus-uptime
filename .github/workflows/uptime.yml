@@ -51,6 +51,8 @@ jobs:
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
           ALERT_EMAIL_TO: ${{ secrets.ALERT_EMAIL_TO }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          IDS_HEARTBEAT_URL: ${{ secrets.IDS_HEARTBEAT_URL }}
+          IDS_HEARTBEAT_TOKEN: ${{ secrets.IDS_HEARTBEAT_TOKEN }}
         run: node check.mjs state/state.json
       - name: Save alert state
         # Runs even when the check exits 1 (a new outage), or the alert would repeat.

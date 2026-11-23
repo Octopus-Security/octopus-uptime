@@ -37,3 +37,13 @@ node check.mjs /tmp/s.json # one real run from your machine
 ```
 
 Targets are in `targets.json`.
+
+**Secret-backed targets.** `targets.json` is public, so a target that must not
+be published (the `octopus-ids` heartbeat on the server) names environment
+variables instead: `urlEnv` for the URL and `headersEnv` for request headers,
+filled from repository secrets in the workflow. Its URL is never printed (logs
+and alerts show `(secret NAME)`), it obeys the same https-on-our-domain rule,
+and until its secrets are set every run prints a `SKIP … not configured` line
+rather than passing quietly. The heartbeat needs `IDS_HEARTBEAT_URL` and
+`IDS_HEARTBEAT_TOKEN` (the token is `/var/lib/octopus-ids/heartbeat.token` on
+the host); see `nixos-hetzner/MONITORING.md`.
